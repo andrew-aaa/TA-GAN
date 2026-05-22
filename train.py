@@ -216,16 +216,16 @@ def main():
         pbar = tqdm(train_loader, desc=f"Эпоха {epoch}/{EPOCHS} [adv_w={adv_w:.2f}, tau={tau:.2f}]")
         
         for batch in pbar:
+            toxin_seqs = batch['toxin_seqs']
             decoder_inputs = batch['decoder_inputs'].to(device)
+            targets = batch['targets'].to(device)
             aa_lengths = batch['aa_lengths'].to(device)
             
             toxin_emb = batch['toxin_embedding']
             if toxin_emb is not None:
                 toxin_emb = toxin_emb.to(device)
-            
-            real_ids = batch['targets'].to(device) # [BATCH_SIZE, MAX_LEN]
 
-            real_onehot = to_one_hot(real_ids, VOCAB_SIZE) # [BATCH_SIZE, MAX_LEN, VOCAB_SIZE]
+            real_onehot = to_one_hot(targets, VOCAB_SIZE) # [BATCH_SIZE, MAX_LEN, VOCAB_SIZE]
             
             # Генерация латентного вектора шума для состязательного макромолекулярного дизайна
             z = torch.randn(BATCH_SIZE, LATENT_DIM, device=device)
@@ -273,7 +273,7 @@ def main():
             logits = torch.nan_to_num(logits, nan=0.0, posinf=5.0, neginf=-5.0)
 
             # Расчет базовой кросс-энтропии (лингвистическая точность) и ошибки предсказания длин белков
-            loss_ce = token_ce_loss(logits, real_ids)
+            loss_ce = token_ce_loss(logits, targets)
             loss_len = F.cross_entropy(pred_len_logits, aa_lengths)
 
             # Формирование мягкого дифференцируемого One-hot распределения через Gumbel-Softmax для прохода в D
