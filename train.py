@@ -34,6 +34,11 @@ from training.bio_losses import bio_loss_generator
 from training.metrics import repeat_ratio, ngram_diversity
 
 
+torch.backends.cuda.enable_flash_sdp(False)
+torch.backends.cuda.enable_mem_efficient_sdp(False)
+torch.backends.cuda.enable_math_sdp(True)
+
+
 def get_adv_weight(epoch_idx: int) -> float:
     """
     Вычисляет динамический вес состязательного лосса (Adversarial Weight Ramp-up).
