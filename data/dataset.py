@@ -152,7 +152,7 @@ class ToxinAntitoxinDataset(Dataset):
             batch (list): Список кортежей, возвращенных методом __getitem__.
 
         Returns:
-            tuple: Сформированный пакет данных:
+            map: Сформированный пакет данных:
                 - toxin_seqs (list[str]): Список строк токсинов.
                 - decoder_inputs (Tensor): Батч входов декодера [BATCH_SIZE, MAX_LEN].
                 - targets (Tensor): Батч таргетов для Loss [BATCH_SIZE, MAX_LEN].
@@ -168,7 +168,14 @@ class ToxinAntitoxinDataset(Dataset):
         batch_embs = None
         if self.toxin_embeddings is not None:
             # Механизм автоматической индексации PyTorch собирает под-тензор батча в GPU-friendly структуру
-            indices = torch.arange(len(batch)) # Локальные индексы элементов внутри батча обрабатываются в train.py
-            batch_embs = self.toxin_embeddings[indices] 
+            indices = [item[4] for item in batch if item[4] is not None]
+            if len(indices) == len(batch):
+                batch_embs = torch.stack([self.toxin_embeddings[idx] for idx in indices], dim=0)
 
-        return toxin_seqs, decoder_inputs, targets, aa_lengths, batch_embs
+        return {
+            'toxin_seqs': toxin_seqs,
+            'decoder_inputs': decoder_inputs,
+            'targets': targets,
+            'aa_lengths': aa_lengths,
+            'toxin_embedding': batch_embs
+        }

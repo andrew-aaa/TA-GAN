@@ -112,18 +112,22 @@ def evaluate(generator: Generator, loader: DataLoader, epoch_idx: int, device: s
 
     with torch.no_grad():
         for batch in loader:
-            toxin_emb = batch['toxin_embedding'].to(device)
-            decoder_input = batch['decoder_input'].to(device)
-            target = batch['target'].to(device)
-            aa_lengths = batch['aa_length'].to(device)
+            toxin_seqs = batch['toxin_seqs']
+            decoder_inputs = batch['decoder_inputs'].to(device)
+            targets = batch['targets'].to(device)
+            aa_lengths = batch['aa_lengths'].to(device)
+            
+            toxin_emb = batch['toxin_embedding']
+            if toxin_emb is not None:
+                toxin_emb = toxin_emb.to(device)
 
             # Валидационный форвард в режиме Teacher Forcing для оценки сходимости
             logits, pred_len_logits = generator.forward_teacher_forcing(
-                decoder_input, toxin_emb, z=None, target_lengths=aa_lengths
+                decoder_inputs, toxin_emb, z=None, target_lengths=aa_lengths
             )
             
             # Накопление классических потерь валидации
-            loss_ce = token_ce_loss(logits, target)
+            loss_ce = token_ce_loss(logits, targets)
             loss_len = F.cross_entropy(pred_len_logits, aa_lengths)
             
             total_ce += loss_ce.item() * toxin_emb.size(0)
@@ -137,11 +141,11 @@ def evaluate(generator: Generator, loader: DataLoader, epoch_idx: int, device: s
             all_target_lengths.append(aa_lengths.cpu())
 
             # Логирование первого попавшегося примера из батча для визуальной оценки качества синтаксиса белков
-            if not sample_logged and len(batch['toxin_sequence']) > 0:
-                real_str = decode_sequence(target[0].cpu().tolist())
+            if not sample_logged and len(batch['toxin_seqs']) > 0:
+                real_str = decode_sequence(targets[0].cpu().tolist())
                 fake_str = decode_sequence(fake_ids[0].cpu().tolist())
                 print(f"\n--- [epoch {epoch_idx}] Валидационный пример ---")
-                print(f"Целевой токсин: {batch['toxin_sequence'][0][:50]}...")
+                print(f"Целевой токсин: {batch['toxin_seqs'][0][:50]}...")
                 print(f"Реальный антидот: {real_str[:60]}")
                 print(f"Сгенерирован de novo: {fake_str[:60]}")
                 print(f"Физическая длина (Реальная: {aa_lengths[0].item()} | Предсказанная: {pred_lengths[0].item()})")
@@ -212,11 +216,14 @@ def main():
         pbar = tqdm(train_loader, desc=f"Эпоха {epoch}/{EPOCHS} [adv_w={adv_w:.2f}, tau={tau:.2f}]")
         
         for batch in pbar:
-            # Извлечение признаков и трансфер на GPU
-            toxin_emb = batch['toxin_embedding'].to(device) # [BATCH_SIZE, 512]
-            decoder_input = batch['decoder_input'].to(device) # [BATCH_SIZE, MAX_LEN]
-            real_ids = batch['target'].to(device) # [BATCH_SIZE, MAX_LEN]
-            aa_lengths = batch['aa_length'].to(device) # [BATCH_SIZE]
+            decoder_inputs = batch['decoder_inputs'].to(device)
+            aa_lengths = batch['aa_lengths'].to(device)
+            
+            toxin_emb = batch['toxin_embedding']
+            if toxin_emb is not None:
+                toxin_emb = toxin_emb.to(device)
+            
+            real_ids = batch['targets'].to(device) # [BATCH_SIZE, MAX_LEN]
 
             real_onehot = to_one_hot(real_ids, VOCAB_SIZE) # [BATCH_SIZE, MAX_LEN, VOCAB_SIZE]
             
@@ -232,7 +239,7 @@ def main():
                 with torch.no_grad():
                     # Получение распределений логитов от генератора без накопления его градиентов
                     logits_fake, _ = generator.forward_teacher_forcing(
-                        decoder_input, toxin_emb, z=z, target_lengths=aa_lengths
+                        decoder_inputs, toxin_emb, z=z, target_lengths=aa_lengths
                     )
                     fake_onehot_d = F.gumbel_softmax(logits_fake, tau=tau, hard=False, dim=-1)
 
@@ -259,7 +266,7 @@ def main():
 
             # Прямой проход Генератора (Teacher Forcing)
             logits, pred_len_logits = generator.forward_teacher_forcing(
-                decoder_input, toxin_emb, z=z, target_lengths=aa_lengths
+                decoder_inputs, toxin_emb, z=z, target_lengths=aa_lengths
             )
 
             # Числовой хак (Стабилизация): Защита от взрыва градиентов и потенциальных NaN в полуавтоматическом режиме
