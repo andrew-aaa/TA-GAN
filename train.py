@@ -213,7 +213,7 @@ def main():
     ema = EMA(generator, decay=EMA_DECAY)
 
     best_val_ce = float('inf')
-    fieldnames = ["epoch", "loss_D", "loss_G", "loss_ce", "loss_len", "loss_adv", "loss_bio", "val_loss_ce", "val_repeat_ratio", "val_diversity"]
+    fieldnames = ["epoch", "loss_D", "loss_G", "loss_ce", "loss_len", "loss_adv", "loss_bio", "val_loss_ce", "val_loss_len", "val_repeat_ratio", "val_diversity"]
 
     # ГЛАВНЫЙ ЦИКЛ ОБУЧЕНИЯ (Epoch Loop)
     for epoch in range(1, EPOCHS + 1):
