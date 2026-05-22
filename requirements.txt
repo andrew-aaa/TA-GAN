@@ -1,6 +1,6 @@
 torch>=2.0.0
-transformers==4.41.2
-peft
+transformers==4.46.0
+peft==0.12.0
 fair-esm
 biopython
 tqdm
