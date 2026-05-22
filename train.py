@@ -186,8 +186,20 @@ def main():
     train_size = len(full_dataset) - val_size
     train_set, val_set = random_split(full_dataset, [train_size, val_size])
 
-    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True, drop_last=True)
-    val_loader = DataLoader(val_set, batch_size=BATCH_SIZE, shuffle=False, drop_last=False)
+    train_loader = DataLoader(
+        train_set,
+        batch_size=BATCH_SIZE,
+        shuffle=True,
+        drop_last=True,
+        collate_fn=full_dataset.collate_fn
+    )
+    val_loader = DataLoader(
+        val_set,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+        drop_last=False,
+        collate_fn=full_dataset.collate_fn
+    )
 
     # Конструирование вычислительных графов Генератора и Дискриминатора
     generator = Generator().to(device)

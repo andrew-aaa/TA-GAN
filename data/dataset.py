@@ -114,7 +114,7 @@ class ToxinAntitoxinDataset(Dataset):
         """Возвращает общее количество валидных биологических пар в датасете."""
         return len(self.toxin_seqs)
 
-    def __getitem__(self, idx: int) -> tuple[str, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> tuple[str, torch.Tensor, torch.Tensor, torch.Tensor, int]:
         """
         Формирует один тренировочный кортеж данных по индексу.
 
@@ -130,6 +130,7 @@ class ToxinAntitoxinDataset(Dataset):
                 - decoder_input (Tensor): Токенизированный вход декодера (с BOS токеном, смещен влево).
                 - target (Tensor): Целевые индексы для подсчета кросс-энтропии (с EOS токеном).
                 - aa_length (Tensor): Истинная длина белка без учета технического паддинга.
+                - idx (int): Индекс элемента для адресации предвычисленного ESM-эмбеддинга.
         """
         toxin_seq = self.toxin_seqs[idx]
         decoder_input, target, aa_length = encode_sequence(self.antitoxin_seqs[idx])
@@ -139,6 +140,7 @@ class ToxinAntitoxinDataset(Dataset):
             torch.tensor(decoder_input, dtype=torch.long),
             torch.tensor(target, dtype=torch.long),
             torch.tensor(aa_length, dtype=torch.long),
+            idx
         )
 
     def collate_fn(self, batch: list) -> dict:
@@ -149,15 +151,16 @@ class ToxinAntitoxinDataset(Dataset):
         и извлечения соответствующего пакета предвычисленных эмбеддингов ESM-2.
 
         Args:
-            batch (list): Список кортежей, возвращенных методом __getitem__.
+            batch (list): Список экземпляров, сформированных методом __getitem__().
 
         Returns:
-            map: Сформированный пакет данных:
+            dict: Полностью собранный батч для цикла обучения:
                 - toxin_seqs (list[str]): Список строк токсинов.
-                - decoder_inputs (Tensor): Батч входов декодера [BATCH_SIZE, MAX_LEN].
-                - targets (Tensor): Батч таргетов для Loss [BATCH_SIZE, MAX_LEN].
-                - aa_lengths (Tensor): Вектор истинных длин белков в батче [BATCH_SIZE].
-                - batch_embs (Tensor или None): Тензор эмбеддингов токсинов [BATCH_SIZE, EMB_DIM].
+                - decoder_inputs (Tensor): Батч входов декодера формы [BATCH_SIZE, MAX_LEN].
+                - targets (Tensor): Батч целевых токенов формы [BATCH_SIZE, MAX_LEN].
+                - aa_lengths (Tensor): Вектор истинных длин белков формы [BATCH_SIZE].
+                - toxin_embedding (Tensor | None): Батч предвычисленных ESM-2 эмбеддингов токсинов формы [BATCH_SIZE, EMB_DIM]
+                    либо None при отсутствии conditioning embeddings.
         """
         toxin_seqs = [item[0] for item in batch]
         decoder_inputs = torch.stack([item[1] for item in batch], dim=0)
@@ -168,9 +171,8 @@ class ToxinAntitoxinDataset(Dataset):
         batch_embs = None
         if self.toxin_embeddings is not None:
             # Механизм автоматической индексации PyTorch собирает под-тензор батча в GPU-friendly структуру
-            indices = [item[4] for item in batch if item[4] is not None]
-            if len(indices) == len(batch):
-                batch_embs = torch.stack([self.toxin_embeddings[idx] for idx in indices], dim=0)
+            indices = [item[4] for item in batch]
+            batch_embs = torch.stack([self.toxin_embeddings[idx] for idx in indices], dim=0)
 
         return {
             'toxin_seqs': toxin_seqs,
