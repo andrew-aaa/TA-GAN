@@ -141,7 +141,7 @@ class ToxinAntitoxinDataset(Dataset):
             torch.tensor(aa_length, dtype=torch.long),
         )
 
-    def collate_fn(self, batch: list) -> tuple[list[str], torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None]:
+    def collate_fn(self, batch: list) -> dict:
         """
         Объединяет отдельные элементы данных в тензорные батчи (Batching) фиксированного размера.
 
