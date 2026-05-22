@@ -173,7 +173,11 @@ def main():
     print(f"[train] Инициализация пайплайна на устройстве: {device}")
 
     # Загрузка и разбиение белкового датасета в пропорции 90% обучение / 10% валидация
-    full_dataset = ToxinAntitoxinDataset()
+    full_dataset = ToxinAntitoxinDataset(
+        toxin_fasta=TOXIN_FASTA_PATH,
+        antidote_fasta=ANTITOXIN_FASTA_PATH,
+        toxin_embeddings_path=TOXIN_EMBEDDINGS_PATH
+    )
     val_size = int(len(full_dataset) * 0.1)
     train_size = len(full_dataset) - val_size
     train_set, val_set = random_split(full_dataset, [train_size, val_size])
