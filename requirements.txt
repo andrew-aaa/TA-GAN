@@ -1,0 +1,14 @@
+torch>=2.0.0
+transformers==4.41.2
+peft
+fair-esm
+biopython
+tqdm
+numpy
+pandas
+matplotlib
+seaborn
+scipy
+psutil
+einops
+accelerate
